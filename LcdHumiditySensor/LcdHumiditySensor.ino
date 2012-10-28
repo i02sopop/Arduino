@@ -10,7 +10,7 @@ const int serialBaudRate = 9600;
 const int sensorReadIntervalMs = 5000;
 int millisSinceLastRead = 0;
 int sensorPin = 2;
-int tempPin = 0;
+int tempPin = 5;
 
 // Microseconds since last state transition. Used to check timing, which is required
 // to read bits and helpful for error checking in other states.
@@ -251,15 +251,14 @@ boolean readSensor(int *temperature_decidegrees_c, int *rel_humidity_decipercent
     return !errorFlag;
 }
 
-int readAnalogTemp() {
-	int tempc = 0; // temperature variables
-	int samples[8]; // variables to make a better precision
+float readAnalogTemp() {
+	float tempc = 0; // temperature variables
+	float samples[8]; // variables to make a better precision
 	int i;
 
+	// gets 8 samples of temperature
 	for(i = 0; i < 8; i++) {
-		// gets 8 samples of temperature
-		// samples[i] = analogRead(tempPin) * 5.0 * 6.5 / 1024.0;
-		samples[i] = (analogRead(tempPin) * 5.0 * 100 / 1024.0) - 273;
+		samples[i] = (analogRead(tempPin) * 5.0  / 1024.0) * 100.0 - 273.15;
 		tempc = tempc + samples[i];
 		delay(1000);
 	}
@@ -273,12 +272,13 @@ void setup() {
     lcd.begin(16, 2);
 
     // INPUT mode is the default, but being explicit never hurts
-    pinMode(sensorPin, INPUT);
+	// We set it for the digital sensor and for the analog sensor
+    pinMode(tempPin, INPUT);
 
     // Pull the sensor pin high using the Arduino's built-in 20k
     // pull-up resistor. The sensor expects it to be pulled high
     // for the first 2s and kept high as its default state.
-    digitalWrite(sensorPin, HIGH);
+    digitalWrite(tempPin, HIGH);
 
     // The sensor expects no communication for the first 2s, so delay
     // entry to the polling loop to give it tons of time to warm up.
@@ -290,8 +290,9 @@ void setup() {
 }
 
 void loop() {
-	int maxT = -100, minT = 100; // to start max/min temperature
-    int temperature = 0, humidity = 0, tempc = readAnalogTemp();
+    int temperature = 0, humidity = 0;
+	float tempc = readAnalogTemp();
+	float maxT = -100.0, minT = 100.0; // to start max/min temperature
     boolean success = readSensor(&temperature, &humidity);
 
 	if(tempc > maxT) { maxT = tempc; } // set max temperature
@@ -300,13 +301,14 @@ void loop() {
     if (success) {
         char line1[16];
         char line2[16];
-        sprintf(line1, "Temp %i.%i %i", temperature / 10, abs(temperature % 10), tempc);
+        sprintf(line1, "Temp %i.%i ", temperature / 10, abs(temperature % 10));
         sprintf(line2, "Hum Rel %i.%i", humidity / 10, humidity % 10);
 
 		// set the cursor to column 0, line 1
 		// (note: line 1 is the second row, since counting begins with 0):
 		lcd.setCursor(0, 0);
 		lcd.print(line1);
+		lcd.print(tempc, 2);
 
 		lcd.setCursor(0, 1);
 		// print the number of seconds since reset:
